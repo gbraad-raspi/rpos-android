@@ -1,0 +1,18 @@
+# Notices
+
+This project is GPL-3.0-or-later. See `LICENSE`.
+
+Parts come from other projects:
+
+- `app/src/main/cpp/waylandcomp`, `app/src/main/cpp/adrenotools` and the
+  `tools/proot` patches come from
+  [DroidDeck](https://github.com/Droid-Deck/DroidDeck), GPL-3.0. DroidDeck is
+  not affiliated with this project.
+- `adrenotools` is MIT licensed. Its license is in
+  `app/src/main/cpp/adrenotools/LICENSE`.
+- proot is from [Termux](https://github.com/termux/proot), GPL-2.0. The patches
+  in `tools/proot/patches` come from DroidDeck and WinNative.
+- Raspberry Pi OS is not included in this repository. It is Debian based and
+  keeps its own licenses. Build it from the official Raspberry Pi image.
+- Raspberry Pi is a trademark of the Raspberry Pi Foundation. This project is
+  not affiliated with the Raspberry Pi Foundation.

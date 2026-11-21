@@ -1,0 +1,4 @@
+plugins {
+    // 7.4.2 is pinned because the build container resolves it from its offline cache.
+    id 'com.android.application' version '7.4.2' apply false
+}

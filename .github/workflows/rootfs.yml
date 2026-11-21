@@ -1,0 +1,68 @@
+name: Raspberry Pi OS rootfs
+
+# Builds the ready-to-run arm64 rootfs and publishes it as a GitHub release.
+# The device never modifies the Raspberry Pi image: it downloads this tarball.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag for the rootfs, for example rpos-r1
+        required: true
+        default: rpos-r1
+  push:
+    tags:
+      - 'rpos-*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rootfs-${{ github.event.inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  rootfs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            e2fsprogs fdisk util-linux xz-utils pigz python3 curl
+
+      - name: Build the rootfs
+        env:
+          ROOTFS_VERSION: ${{ github.event.inputs.version || github.ref_name }}
+          ROOTFS_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.version || github.ref_name }}/rpos-desktop-arm64.tar.gz
+          KEEP_IMAGE: '0'
+        run: tools/build-rootfs.sh
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.event.inputs.version || github.ref_name }}
+        run: |
+          gh release view "$VERSION" >/dev/null 2>&1 ||
+            gh release create "$VERSION" \
+              --title "Raspberry Pi OS $VERSION" \
+              --notes "Raspberry Pi OS arm64 rootfs for rpos-android. The app installs this tarball on first run."
+          gh release upload "$VERSION" \
+            .build/out/rpos-desktop-arm64.tar.gz \
+            .build/out/rpos-desktop-arm64.tar.gz.sha256 \
+            .build/out/catalog.json \
+            --clobber
+
+      - name: Summary
+        run: |
+          {
+            echo "### Raspberry Pi OS rootfs"
+            echo
+            echo '```'
+            cat .build/out/catalog.json
+            echo '```'
+            ls -lh .build/out/rpos-desktop-arm64.tar.gz
+          } >> "$GITHUB_STEP_SUMMARY"

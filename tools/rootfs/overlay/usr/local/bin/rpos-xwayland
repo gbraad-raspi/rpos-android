@@ -1,0 +1,4 @@
+#!/bin/sh
+# Pi OS's xwayland-xauth wrapper builds an Xauthority path for /home/$USER, but the
+# session runs as root on Android. Xwayland needs no auth for local clients here.
+exec /usr/bin/Xwayland "$@"

@@ -1,0 +1,13 @@
+#!/bin/sh
+# shasum(1) shim for build containers that ship sha256sum(1) only.
+# Accepts the subset build.sh uses: `shasum -a 256 FILE` and `shasum -a 256 -c -`.
+set -e
+args=
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -a) shift 2 ;;
+        *) args="$args $1"; shift ;;
+    esac
+done
+# shellcheck disable=SC2086
+exec sha256sum $args
