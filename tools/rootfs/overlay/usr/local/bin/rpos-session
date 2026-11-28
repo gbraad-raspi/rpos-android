@@ -4,8 +4,8 @@
 # Wayland surface, so openbox and the desktop run unchanged.
 set -u
 
-export HOME=${HOME:-/root}
-export USER=${USER:-root}
+export HOME=${HOME:-/home/pi}
+export USER=${USER:-pi}
 export XDG_SESSION_TYPE=x11
 export XDG_CURRENT_DESKTOP=LXDE
 export XDG_SESSION_DESKTOP=LXDE
@@ -31,6 +31,20 @@ export GDK_BACKEND=x11
 export QT_QPA_PLATFORM=xcb
 export LIBGL_ALWAYS_SOFTWARE=1
 export GALLIUM_DRIVER=llvmpipe
+
+# Firefox's content sandbox cannot create its namespaces under proot. Disable
+# the sandboxes and stay on X11 with software rendering.
+export MOZ_ENABLE_WAYLAND=0
+export MOZ_USE_XINPUT2=1
+export MOZ_DISABLE_CONTENT_SANDBOX=1
+export MOZ_DISABLE_GMP_SANDBOX=1
+export MOZ_DISABLE_RDD_SANDBOX=1
+export MOZ_DISABLE_SOCKET_PROCESS_SANDBOX=1
+export MOZ_DISABLE_UTILITY_SANDBOX=1
+export MOZ_SHM_NO_SEALS=1
+export MOZ_ACCELERATED=0
+export MOZ_WEBRENDER=1
+export MOZ_X11_EGL=0
 
 mkdir -p "$XDG_RUNTIME_DIR" /tmp/.X11-unix /tmp/.ICE-unix
 chmod 700 "$XDG_RUNTIME_DIR" 2>/dev/null

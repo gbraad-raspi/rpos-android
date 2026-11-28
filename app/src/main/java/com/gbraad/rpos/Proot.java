@@ -31,16 +31,16 @@ public final class Proot {
         cmd.add(root.getPath());
         cmd.add("--link2symlink");
         cmd.add("-w");
-        cmd.add("/root");
+        cmd.add("/home/pi");
         for (String bind : binds(context)) {
             cmd.add("-b");
             cmd.add(bind);
         }
         cmd.add("/usr/bin/env");
         cmd.add("-i");
-        cmd.add("HOME=/root");
-        cmd.add("USER=root");
-        cmd.add("LOGNAME=root");
+        cmd.add("HOME=/home/pi");
+        cmd.add("USER=pi");
+        cmd.add("LOGNAME=pi");
         cmd.add("SHELL=/bin/bash");
         cmd.add("PATH=" + RuntimeStore.GUEST_PATH);
         cmd.add("TERM=xterm-256color");

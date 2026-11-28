@@ -100,6 +100,20 @@ public final class RuntimeInstaller {
         File root = RuntimeStore.root(context);
         File staging = new File(context.getFilesDir(), "linuxfs.new");
         deleteTree(staging);
+        // Remove the old tree before the long extraction. Read-only image
+        // directories made the final rename fail after a full extract.
+        deleteTree(root);
+        if (root.exists()) {
+            File[] left = root.listFiles();
+            StringBuilder names = new StringBuilder();
+            if (left != null) {
+                for (int i = 0; i < Math.min(left.length, 10); i++) {
+                    names.append(left[i].getName()).append(' ');
+                }
+                names.append("(").append(left.length).append(" entries)");
+            }
+            throw new IOException("cannot remove the old rootfs: " + names);
+        }
         if (!staging.mkdirs() && !staging.isDirectory()) {
             throw new IOException("cannot create " + staging);
         }
@@ -136,7 +150,8 @@ public final class RuntimeInstaller {
 
         deleteTree(root);
         if (!staging.renameTo(root)) {
-            throw new IOException("cannot move the rootfs into place");
+            throw new IOException("cannot move the rootfs into place (root exists=" + root.exists()
+                    + ", staging exists=" + staging.exists() + ")");
         }
         finishInstall(context, root, version);
         progress.onProgress("Raspberry Pi OS " + version + " installed", 100);
@@ -453,22 +468,44 @@ public final class RuntimeInstaller {
         }
         File fonts = new File(root, "usr/local/share/fonts/android");
         mkdirs(fonts);
-        File desktops = new File(root, "root/Desktop");
-        mkdirs(desktops);
+        File home = new File(root, "home/pi");
+        mkdirs(home, new File(home, ".config"), new File(home, "Desktop"), new File(home, "Downloads"));
+        chmod(home, 0755);
+        File skel = new File(root, "etc/skel");
+        if (skel.isDirectory()) {
+            File[] entries = skel.listFiles();
+            if (entries != null) {
+                for (File entry : entries) {
+                    File target = new File(home, entry.getName());
+                    if (target.exists()) continue;
+                    try {
+                        if (entry.isDirectory()) {
+                            Files.createDirectories(target.toPath());
+                        } else if (entry.isFile()) {
+                            Files.copy(entry.toPath(), target.toPath());
+                        }
+                    } catch (IOException ignored) {
+                    }
+                }
+            }
+        }
     }
 
     private static void writeAccounts(File root) throws IOException {
         int uid = android.os.Process.myUid();
         File passwd = new File(root, "etc/passwd");
         StringBuilder out = new StringBuilder();
-        out.append("root:x:").append(uid).append(':').append(uid).append(":root:/root:/bin/bash\n");
+        // The app's uid is the desktop user. Keep a real root entry for programs
+        // that look up uid 0, but the session runs as pi.
+        out.append("pi:x:").append(uid).append(':').append(uid)
+                .append(":Raspberry Pi:/home/pi:/bin/bash\n");
         out.append("root:x:0:0:root:/root:/bin/bash\n");
         String existing = passwd.isFile() ? new String(Files.readAllBytes(passwd.toPath()), StandardCharsets.UTF_8) : "";
         for (String line : existing.split("\n")) {
             if (line.trim().isEmpty()) continue;
             String[] fields = line.split(":", -1);
             if (fields.length < 3) continue;
-            if (fields[0].equals("root") || fields[2].equals("0")
+            if (fields[0].equals("pi") || fields[0].equals("root") || fields[2].equals("0")
                     || fields[2].equals(Integer.toString(uid))) continue;
             out.append(line).append('\n');
         }
@@ -476,14 +513,14 @@ public final class RuntimeInstaller {
 
         File group = new File(root, "etc/group");
         StringBuilder g = new StringBuilder();
-        g.append("root:x:").append(uid).append(":\n");
+        g.append("pi:x:").append(uid).append(":\n");
         g.append("root:x:0:\n");
         String existingGroup = group.isFile() ? new String(Files.readAllBytes(group.toPath()), StandardCharsets.UTF_8) : "";
         for (String line : existingGroup.split("\n")) {
             if (line.trim().isEmpty()) continue;
             String[] fields = line.split(":", -1);
             if (fields.length < 3) continue;
-            if (fields[0].equals("root") || fields[2].equals("0")
+            if (fields[0].equals("pi") || fields[0].equals("root") || fields[2].equals("0")
                     || fields[2].equals(Integer.toString(uid))) continue;
             g.append(line).append('\n');
         }
@@ -526,11 +563,27 @@ public final class RuntimeInstaller {
     }
 
     private static void deleteTree(File file) {
-        if (file == null || !file.exists()) return;
-        File[] children = file.listFiles();
-        if (children != null) for (File child : children) deleteTree(child);
+        if (file == null) return;
+        try {
+            // Test the link first: File.exists() follows links and is false for a
+            // broken symlink, which used to leave the link and its directory behind.
+            if (Files.isSymbolicLink(file.toPath())) {
+                if (!file.delete()) Log.w(TAG, "could not delete link " + file.getPath());
+                return;
+            }
+        } catch (Exception ignored) {
+        }
+        if (!file.exists()) return;
+        if (file.isDirectory()) {
+            // Some image directories are read-only (0555). The app owns them, so
+            // make them writable before removing the entries. A directory that
+            // still has entries makes the final rename of the new rootfs fail.
+            chmod(file, 0700);
+            File[] children = file.listFiles();
+            if (children != null) for (File child : children) deleteTree(child);
+        }
         //noinspection ResultOfMethodCallIgnored
-        file.delete();
+        if (!file.delete()) Log.w(TAG, "could not delete " + file.getPath());
     }
 
     private static String downloadString(String url) throws IOException {

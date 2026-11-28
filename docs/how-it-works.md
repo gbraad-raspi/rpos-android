@@ -24,7 +24,9 @@ calls, and it uses the one folder where Android allows executable code.
 - Calls that the Android app sandbox blocks are answered by proot. Examples are
   `set_robust_list`, `faccessat2` and `clone3`.
 - The guest runs as the app's uid. The app writes `/etc/passwd` so that this uid
-  is also `root` inside the guest.
+  is the `pi` user with `/home/pi` as its home. A root entry for uid 0 stays,
+  but no process runs as root. Chromium and some other programs refuse to run
+  as root, so the desktop user must be a normal user.
 - proot runs with `--link2symlink`. Android denies hard links to apps. Xwayland
   creates its lock file with a hard link, so proot turns that link into a
   symlink and Xwayland starts.
@@ -104,6 +106,18 @@ aspect ratio. The compositor log shows a line such as:
 The guest draws at 1280x800 and the host stretches it to the screen. The guest
 stays at 1x, so its panels, icons and fonts look right on a high-density
 screen. Input coordinates are mapped through the same scale.
+
+## The desktop user
+
+The app's uid is the only uid that can own files in the app folder. The app
+maps that uid to the name `pi` in `/etc/passwd` and `/etc/group`, and it creates
+`/home/pi`. The session, the panel and the browser all run as `pi`.
+
+Firefox starts as a normal user. It runs with its content sandbox disabled and
+software WebRender, because the sandbox cannot create namespaces under proot.
+Firefox shows a "security sandbox is disabled" notice. It may also log that it
+cannot open `/dev/video` when it looks for cameras. Android does not expose the
+camera nodes to the app, so that message is expected.
 
 ## The rootfs
 

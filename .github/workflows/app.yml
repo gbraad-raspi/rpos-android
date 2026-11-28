@@ -23,6 +23,11 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gawk make patch curl
+
       - name: Install SDK components
         run: |
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
@@ -33,9 +38,9 @@ jobs:
             "ndk;26.1.10909125"
 
       - name: Build the patched proot
-        env:
-          NDK: ${{ env.ANDROID_SDK_ROOT }}/ndk/26.1.10909125
-        run: bash tools/build-proot.sh
+        run: |
+          NDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}/ndk/26.1.10909125" \
+            bash tools/build-proot.sh
 
       - uses: gradle/actions/setup-gradle@v4
         with:

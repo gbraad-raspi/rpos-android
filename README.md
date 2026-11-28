@@ -20,6 +20,8 @@ patched proot and its native Wayland compositor. See
   the UI is readable on a high-density tablet.
 - Touch, mouse, trackpad, hardware keyboard and a raw soft keyboard.
 - A menu button that can be dragged out of the way.
+- The desktop runs as the `pi` user with `/home/pi` as its home. Apps that
+  refuse to run as root, such as Chromium, start normally.
 - A rootfs install from a downloaded tarball, or from a local tarball for
   development.
 - No root, no virtual machine, no kernel module.
@@ -30,7 +32,7 @@ patched proot and its native Wayland compositor. See
 - Android 9 (API 29) or newer.
 - arm64 device (`arm64-v8a`).
 - Vulkan support on the device. The host compositor renders with Vulkan.
-- About 1.5 GB to download the rootfs, and about 5 GB free to unpack it.
+- About 1.7 GB to download the rootfs, and about 5 GB free to unpack it.
 - No root.
 
 A tablet is a good target. A phone works, but the Pi desktop is small.
@@ -165,6 +167,7 @@ after extraction and the runner has room for the pack step.
 | `tools/proot` | Patched proot source and build script |
 | `tools/rootfs/overlay` | Files added to the Pi OS rootfs |
 | `tools/build-rootfs.sh` | Rootfs build script |
+| `app/src/main/assets/keymap.xkb` | XKB keymap the compositor sends to the guest |
 | `.build/out` | Built rootfs and catalog |
 
 On the device, the rootfs is in the app's private folder `files/linuxfs`. The
@@ -182,6 +185,8 @@ proot -> rpos-session -> Xwayland -> lxsession (rpd-x) -> openbox, lxpanel-pi, p
 - `proot` maps the guest root to `files/linuxfs`. It runs with
   `--link2symlink`, because Android denies hard links to apps and Xwayland needs
   one for its lock file.
+- The app's uid is the desktop user `pi`, with `/home/pi` as the home folder.
+  `/etc/passwd` also keeps a root entry for uid 0, but no process runs as root.
 - `rpos-session` sets the X11 environment and starts rootful Xwayland on the
   Android compositor.
 - `lxsession` starts Pi OS's X11 session with `openbox-rpd`, `lxpanel-pi` and
@@ -202,6 +207,10 @@ and the compositor stretches it to the `SurfaceView`.
   Services that need systemd, sound or polkit do not start. The rootfs build
   removes the polkit agents so they do not show an error at login.
 - There is no audio yet.
+- Firefox runs with its content sandbox disabled and software WebRender. It
+  shows a "security sandbox is disabled" notice. The sandbox cannot create its
+  namespaces under proot. It may also log that it cannot open `/dev/video` while
+  it looks for cameras. Android does not expose the camera nodes.
 - The app does not include the rootfs. You build it and host it, or push it
   with adb.
 - The app is not tested on every device. Adreno 6xx and newer are the best
